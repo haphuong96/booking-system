@@ -1,0 +1,87 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider     = "prisma-client"
+  output       = "../generated/prisma"
+  moduleFormat = "cjs"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Driver {
+  id                   Int                   @id @default(autoincrement())
+  name                 String?
+  ticketBookings       TicketBooking[]
+  bookingTargetDrivers BookingTargetDriver[]
+
+  @@map("drivers")
+}
+
+model Route {
+  id          Int          @id @default(autoincrement())
+  name        String?
+  zone        String?
+  routeClaims RouteClaim[]
+
+  @@map("routes")
+}
+
+model BookingSession {
+  id                     Int                   @id @default(autoincrement())
+  regionCode             String?               @map("region_code")
+  name                   String?
+  targetDate             DateTime?             @map("target_date") @db.Date
+  startBookingTime       DateTime?             @map("start_booking_time")
+  endBookingTime         DateTime?             @map("end_booking_time")
+  latestCancellationTime DateTime?             @map("latest_cancellation_time")
+  maxTicketsPerDriver    Int?                  @map("max_tickets_per_driver")
+  bookingTargetDrivers   BookingTargetDriver[]
+
+  @@map("booking_sessions")
+}
+
+// TicketBooking is the parent — its PK (ticketId) is shared with Ticket.id
+model TicketBooking {
+  ticketId Int       @id @default(autoincrement()) @map("ticket_id")
+  driverId Int       @map("driver_id")
+  bookedAt DateTime? @map("booked_at")
+  driver   Driver    @relation(fields: [driverId], references: [id])
+  ticket   Ticket?
+
+  @@map("ticket_bookings")
+}
+
+// tickets.id is a FK pointing to ticket_bookings.ticket_id
+model Ticket {
+  id            Int           @id @map("id")
+  zone          String?
+  targetDate    DateTime?     @map("target_date") @db.Date
+  routeClaimed  Int?          @map("route_claimed")
+  ticketBooking TicketBooking @relation(fields: [id], references: [ticketId])
+  routeClaim    RouteClaim?
+
+  @@map("tickets")
+}
+
+model RouteClaim {
+  ticketId  Int       @id @map("ticket_id")
+  routeId   Int       @map("route_id")
+  claimedAt DateTime? @map("claimed_at")
+  route     Route     @relation(fields: [routeId], references: [id])
+  ticket    Ticket    @relation(fields: [ticketId], references: [id])
+
+  @@map("route_claims")
+}
+
+model BookingTargetDriver {
+  bookingSessionId Int            @map("booking_session_id")
+  driverId         Int            @map("driver_id")
+  driver           Driver         @relation(fields: [driverId], references: [id])
+  bookingSession   BookingSession @relation(fields: [bookingSessionId], references: [id])
+
+  @@id([bookingSessionId, driverId])
+  @@map("booking_target_drivers")
+}
