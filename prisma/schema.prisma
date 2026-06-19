@@ -43,27 +43,26 @@ model BookingSession {
   @@map("booking_sessions")
 }
 
-// TicketBooking is the parent — its PK (ticketId) is shared with Ticket.id
-model TicketBooking {
-  ticketId Int       @id @default(autoincrement()) @map("ticket_id")
-  driverId Int       @map("driver_id")
-  bookedAt DateTime? @map("booked_at")
-  driver   Driver    @relation(fields: [driverId], references: [id])
-  ticket   Ticket?
-
-  @@map("ticket_bookings")
-}
-
-// tickets.id is a FK pointing to ticket_bookings.ticket_id
+// Ticket is the parent — exists independently; null ticketBooking = available to book
 model Ticket {
-  id            Int           @id @map("id")
+  id            Int            @id @default(autoincrement())
   zone          String?
-  targetDate    DateTime?     @map("target_date") @db.Date
-  routeClaimed  Int?          @map("route_claimed")
-  ticketBooking TicketBooking @relation(fields: [id], references: [ticketId])
+  targetDate    DateTime?      @map("target_date") @db.Date
+  ticketBooking TicketBooking?
   routeClaim    RouteClaim?
 
   @@map("tickets")
+}
+
+// Created when a driver books a ticket; ticketId is FK → tickets.id
+model TicketBooking {
+  ticketId Int       @id @map("ticket_id")
+  driverId Int       @map("driver_id")
+  bookedAt DateTime? @map("booked_at")
+  ticket   Ticket    @relation(fields: [ticketId], references: [id])
+  driver   Driver    @relation(fields: [driverId], references: [id])
+
+  @@map("ticket_bookings")
 }
 
 model RouteClaim {

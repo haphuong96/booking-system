@@ -50,7 +50,9 @@ npx prisma migrate dev --name <name>          # create + apply migration
 npx prisma migrate deploy                     # apply existing migrations (prod)
 npx prisma generate                           # regenerate client after schema changes
 npx prisma studio                             # GUI
-npx prisma db seed                            # seed drivers + routes
+npx prisma db seed                            # seed drivers, routes + tickets
+npm run db:seed                               # same via npm
+npm run db:reset                              # ⚠ drop + reapply all migrations + reseed (dev only)
 ```
 
 ## Architecture
@@ -68,7 +70,8 @@ npx prisma db seed                            # seed drivers + routes
 `PrismaModule` is `@Global()`, so `PrismaService` is available everywhere without re-importing the module. Access the client via `prismaService.prisma.<model>`.
 
 **Data model relationships (non-obvious):**
-- `TicketBooking` is the *parent* of `Ticket` — `tickets.id` is a FK pointing to `ticket_bookings.ticket_id`. Create a `TicketBooking` first, then a `Ticket` with the same ID.
+- `Ticket` is the parent — exists independently; a null `ticketBooking` means the ticket is still available to book.
+- `TicketBooking` is created when a driver books a ticket; its PK `ticketId` is a FK → `tickets.id` (1:1).
 - `RouteClaim` is 1:1 with `Ticket` via `route_claims.ticket_id → tickets.id`.
 - `BookingTargetDriver` is an explicit junction table between `BookingSession` and `Driver` with a composite PK `[bookingSessionId, driverId]`.
 

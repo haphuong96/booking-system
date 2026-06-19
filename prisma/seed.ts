@@ -1,6 +1,6 @@
 import 'dotenv/config';
 import { PrismaPg } from '@prisma/adapter-pg';
-import { PrismaClient } from '../generated/prisma/client';
+import { Prisma, PrismaClient } from '../generated/prisma/client';
 
 const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL });
 const prisma = new PrismaClient({ adapter });
@@ -42,6 +42,24 @@ const ROUTES = ZONES.flatMap((zone) =>
   Array.from({ length: 4 }, (_, i) => ({ zone, name: `${zone}-${i + 1}` })),
 );
 
+// Seed tickets for the next 3 days, 5 tickets per zone per day = 150 tickets total
+function buildTickets(): Prisma.TicketCreateManyInput[] {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const dates = Array.from({ length: 3 }, (_, i) => {
+    const d = new Date(today);
+    d.setDate(d.getDate() + i + 1);
+    return d;
+  });
+
+  return dates.flatMap((targetDate) =>
+    ZONES.flatMap((zone) =>
+      Array.from({ length: 5 }, () => ({ zone, targetDate })),
+    ),
+  );
+}
+
 async function main() {
   console.log('Seeding drivers...');
   await prisma.driver.deleteMany();
@@ -52,6 +70,14 @@ async function main() {
   await prisma.route.deleteMany();
   await prisma.route.createMany({ data: ROUTES });
   console.log(`  ✓ ${ROUTES.length} routes (${ZONES.length} zones × 4 each)`);
+
+  console.log('Seeding tickets...');
+  const tickets = buildTickets();
+  await prisma.ticket.deleteMany();
+  await prisma.ticket.createMany({ data: tickets });
+  console.log(
+    `  ✓ ${tickets.length} tickets (3 days × ${ZONES.length} zones × 5 each)`,
+  );
 }
 
 main()
