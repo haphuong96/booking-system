@@ -1,29 +1,23 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { Prisma } from '../../generated/prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateBookingSessionDto } from './dto/create-booking-session.dto';
+import { formatSession } from './booking-sessions.mapper';
+import {
+  BookingSessionResponse,
+  IncludeTargetDrivers,
+} from './booking-sessions.types';
 
-const includeTargetDrivers = {
+const includeTargetDrivers: IncludeTargetDrivers = {
   bookingTargetDrivers: { include: { driver: true } },
-} as const;
+};
 
-type SessionWithDrivers = Prisma.BookingSessionGetPayload<{
-  include: typeof includeTargetDrivers;
-}>;
-
-function formatSession(session: SessionWithDrivers) {
-  const { bookingTargetDrivers, ...rest } = session;
-  return {
-    ...rest,
-    targetDrivers: bookingTargetDrivers.map((b) => b.driver),
-  };
-}
+export type { BookingSessionResponse } from './booking-sessions.types';
 
 @Injectable()
 export class BookingSessionsService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async findAll() {
+  async findAll(): Promise<BookingSessionResponse[]> {
     const sessions = await this.prisma.prisma.bookingSession.findMany({
       include: includeTargetDrivers,
       orderBy: { id: 'asc' },
@@ -31,7 +25,7 @@ export class BookingSessionsService {
     return sessions.map(formatSession);
   }
 
-  async create(dto: CreateBookingSessionDto) {
+  async create(dto: CreateBookingSessionDto): Promise<BookingSessionResponse> {
     const session = await this.prisma.prisma.bookingSession.create({
       data: {
         regionCode: dto.regionCode,
@@ -50,7 +44,7 @@ export class BookingSessionsService {
     return formatSession(session);
   }
 
-  async delete(id: number) {
+  async delete(id: number): Promise<void> {
     const session = await this.prisma.prisma.bookingSession.findUnique({
       where: { id },
     });

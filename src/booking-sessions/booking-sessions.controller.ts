@@ -9,7 +9,10 @@ import {
   ParseIntPipe,
   Post,
 } from '@nestjs/common';
-import { BookingSessionsService } from './booking-sessions.service';
+import {
+  BookingSessionResponse,
+  BookingSessionsService,
+} from './booking-sessions.service';
 import { CreateBookingSessionDto } from './dto/create-booking-session.dto';
 
 @Controller('booking-sessions')
@@ -17,19 +20,21 @@ export class BookingSessionsController {
   constructor(private readonly service: BookingSessionsService) {}
 
   @Get()
-  findAll() {
+  findAll(): Promise<BookingSessionResponse[]> {
     return this.service.findAll();
   }
 
   @Post()
   @HttpCode(HttpStatus.CREATED)
-  create(@Body() dto: CreateBookingSessionDto) {
+  create(
+    @Body() dto: CreateBookingSessionDto,
+  ): Promise<BookingSessionResponse> {
     return this.service.create(dto);
   }
 
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
-  delete(@Param('id', ParseIntPipe) id: number) {
+  delete(@Param('id', ParseIntPipe) id: number): Promise<void> {
     return this.service.delete(id);
   }
 }
