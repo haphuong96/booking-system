@@ -5,6 +5,7 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { Prisma, Ticket } from '../prisma/prisma.types';
+import { PrismaErrorCode } from '../prisma/prisma.constants';
 import { CreateTicketDto } from './dto/create-ticket.dto';
 import { IncludeTicketDetails, TicketResponse } from './tickets.types';
 
@@ -40,9 +41,9 @@ export class TicketsService {
       await this.prisma.prisma.ticket.delete({ where: { id } });
     } catch (e) {
       if (e instanceof Prisma.PrismaClientKnownRequestError) {
-        if (e.code === 'P2025')
+        if (e.code === PrismaErrorCode.P2025_RECORD_NOT_FOUND)
           throw new NotFoundException(`Ticket #${id} not found`);
-        if (e.code === 'P2003')
+        if (e.code === PrismaErrorCode.P2003_FOREIGN_KEY_CONSTRAINT)
           throw new ConflictException(
             `Ticket #${id} cannot be deleted because it has already been booked or claimed`,
           );
