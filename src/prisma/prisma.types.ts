@@ -1,5 +1,5 @@
+export { Prisma } from '../../generated/prisma/client';
 export type {
-  Prisma,
   Driver,
   BookingSession,
   Ticket,
