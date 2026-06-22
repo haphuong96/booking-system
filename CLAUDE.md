@@ -11,7 +11,7 @@ booking-system/
 └── booking-system-api/         # NestJS application
     ├── docs/specification.md   # Full product specification
     ├── src/
-    │   ├── prisma/             # Global PrismaModule + PrismaService
+    │   ├── prisma/             # Global PrismaModule + PrismaService + shared Prisma types
     │   └── ...                 # Feature modules go here
     ├── prisma/
     │   ├── schema.prisma       # Prisma 7 schema (models)
@@ -60,16 +60,26 @@ npm run db:reset                              # ⚠ drop + reapply all migration
 **Stack:** NestJS 11, Prisma 7, PostgreSQL 18, TypeScript (`module: nodenext`).
 
 **Database connection (Prisma 7 specifics):**
+
 - Prisma 7 does not support `url` in `schema.prisma`. The connection URL lives in two places:
   - `prisma.config.ts` — used by the Prisma CLI for migrations
   - `PrismaService` constructor — uses `@prisma/adapter-pg` (`PrismaPg`) to pass `DATABASE_URL` at runtime
 - After any schema change, run `npx prisma generate` to rebuild `generated/prisma/`.
-- Import the client from `../../generated/prisma/client` (not from `@prisma/client`).
 
-**PrismaService pattern:**
+**PrismaModule as the Prisma boundary:**
 `PrismaModule` is `@Global()`, so `PrismaService` is available everywhere without re-importing the module. Access the client via `prismaService.prisma.<model>`.
 
+Import everything Prisma-related (model types, `Prisma` namespace) from `../prisma/prisma.types` — never directly from `generated/prisma/`.
+
+**Feature module file conventions:**
+
+- `*.types.ts` — type definitions only (no runtime values)
+- `*.mapper.ts` — functions that transform Prisma results into response shapes
+- `*.service.ts` — business logic; may define private Prisma `include`/`select` constants
+- `*.controller.ts` — HTTP layer; imports response types from the service
+
 **Data model relationships (non-obvious):**
+
 - `Ticket` is the parent — exists independently; a null `ticketBooking` means the ticket is still available to book.
 - `TicketBooking` is created when a driver books a ticket; its PK `ticketId` is a FK → `tickets.id` (1:1).
 - `RouteClaim` is 1:1 with `Ticket` via `route_claims.ticket_id → tickets.id`.
@@ -86,7 +96,9 @@ Jitsu is a last-mile logistics platform. The booking system lets drivers reserve
 ## Environment
 
 `.env` (in `booking-system-api/`):
+
 ```
 DATABASE_URL="postgresql://postgres:postgres@localhost:5432/booking_system?schema=public"
 ```
+
 Docker container credentials match: user `postgres`, password `postgres`, db `booking_system`.
