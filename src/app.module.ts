@@ -6,6 +6,7 @@ import { PrismaModule } from './prisma/prisma.module';
 import { BookingSessionsModule } from './booking-sessions/booking-sessions.module';
 import { TicketsModule } from './tickets/tickets.module';
 import { BookingsModule } from './bookings/bookings.module';
+import { RouteClaimsModule } from './route-claims/route-claims.module';
 
 @Module({
   imports: [
@@ -14,6 +15,7 @@ import { BookingsModule } from './bookings/bookings.module';
     BookingSessionsModule,
     TicketsModule,
     BookingsModule,
+    RouteClaimsModule,
   ],
   controllers: [AppController],
   providers: [AppService],
