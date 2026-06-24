@@ -39,15 +39,6 @@ export class BookingsService {
       );
     }
 
-    //     2. Same driver exceeding maxTicketsPerDriver via concurrent requests — not handled. The flow is:
-
-    // Driver A req 1: count = 0 < max ✓ → proceeds
-    // Driver A req 2: count = 0 < max ✓ → proceeds   ← reads same count, race
-    // Driver A req 1: INSERT ticket #1 → success
-    // Driver A req 2: INSERT ticket #2 → success       ← now at max+1
-    // The count check and the insert are two separate DB round-trips with no atomicity between them.
-
-    // Fix: wrap the count check + insert in a $transaction with isolationLevel: 'Serializable'. PostgreSQL will detect the anomaly and abort one of the conflicting transactions with a serialization error — which maps to our already-defined P2034_TRANSACTION_CONFLICT. The aborted request gets a 409.
     if (session.maxTicketsPerDriver !== null) {
       const bookedCount = await this.prisma.prisma.ticketBooking.count({
         where: {
@@ -79,6 +70,44 @@ export class BookingsService {
           );
         if (e.code === PrismaErrorCode.P2003_FOREIGN_KEY_CONSTRAINT)
           throw new NotFoundException(`Driver #${dto.driverId} not found`);
+      }
+      throw e;
+    }
+  }
+
+  async adminBook(dto: CreateBookingDto): Promise<BookingResponse> {
+    const now = new Date();
+    try {
+      return await this.prisma.prisma.ticketBooking.upsert({
+        where: { ticketId: dto.ticketId },
+        create: {
+          ticketId: dto.ticketId,
+          driverId: dto.driverId,
+          bookedAt: now,
+        },
+        update: { driverId: dto.driverId, bookedAt: now },
+        include: { ticket: true, driver: true },
+      });
+    } catch (e) {
+      if (e instanceof Prisma.PrismaClientKnownRequestError) {
+        if (e.code === PrismaErrorCode.P2003_FOREIGN_KEY_CONSTRAINT)
+          throw new NotFoundException(
+            `Ticket #${dto.ticketId} or driver #${dto.driverId} not found`,
+          );
+      }
+      throw e;
+    }
+  }
+
+  async adminUnbook(ticketId: number): Promise<void> {
+    try {
+      await this.prisma.prisma.ticketBooking.delete({ where: { ticketId } });
+    } catch (e) {
+      if (e instanceof Prisma.PrismaClientKnownRequestError) {
+        if (e.code === PrismaErrorCode.P2025_RECORD_NOT_FOUND)
+          throw new NotFoundException(
+            `No booking found for ticket #${ticketId}`,
+          );
       }
       throw e;
     }
