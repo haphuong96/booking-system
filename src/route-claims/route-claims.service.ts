@@ -8,6 +8,7 @@ import {
 import { Prisma } from '../prisma/prisma.types';
 import { PrismaService } from '../prisma/prisma.service';
 import { PrismaErrorCode } from '../prisma/prisma.constants';
+import { AdminCreateRouteClaimDto } from './dto/admin-create-route-claim.dto';
 import { CreateRouteClaimDto } from './dto/create-route-claim.dto';
 import { RouteClaimResponse } from './route-claims.types';
 
@@ -81,6 +82,59 @@ export class RouteClaimsService {
           throw new ConflictException(
             `Route #${dto.routeId} has already been claimed for this date`,
           );
+      }
+      throw e;
+    }
+  }
+
+  async adminClaim(dto: AdminCreateRouteClaimDto): Promise<RouteClaimResponse> {
+    const now = new Date();
+
+    const ticket = await this.prisma.prisma.ticket.findUnique({
+      where: { id: dto.ticketId },
+    });
+    if (!ticket)
+      throw new NotFoundException(`Ticket #${dto.ticketId} not found`);
+
+    const route = await this.prisma.prisma.route.findUnique({
+      where: { id: dto.routeId },
+    });
+    if (!route) throw new NotFoundException(`Route #${dto.routeId} not found`);
+    if (route.zone !== ticket.zone)
+      throw new ConflictException(
+        `Route #${dto.routeId} is in zone ${route.zone} but ticket #${dto.ticketId} is in zone ${ticket.zone}`,
+      );
+
+    return this.prisma.prisma.$transaction(async (tx) => {
+      // Delete any claim on this route by another ticket with the same target date
+      await tx.routeClaim.deleteMany({
+        where: {
+          routeId: dto.routeId,
+          ticket: { targetDate: ticket.targetDate },
+          NOT: { ticketId: dto.ticketId },
+        },
+      });
+
+      return tx.routeClaim.upsert({
+        where: { ticketId: dto.ticketId },
+        create: {
+          ticketId: dto.ticketId,
+          routeId: dto.routeId,
+          claimedAt: now,
+        },
+        update: { routeId: dto.routeId, claimedAt: now },
+        include: { route: true, ticket: true },
+      });
+    });
+  }
+
+  async adminUnclaim(ticketId: number): Promise<void> {
+    try {
+      await this.prisma.prisma.routeClaim.delete({ where: { ticketId } });
+    } catch (e) {
+      if (e instanceof Prisma.PrismaClientKnownRequestError) {
+        if (e.code === PrismaErrorCode.P2025_RECORD_NOT_FOUND)
+          throw new NotFoundException(`No claim found for ticket #${ticketId}`);
       }
       throw e;
     }
