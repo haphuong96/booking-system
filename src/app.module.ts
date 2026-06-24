@@ -7,6 +7,7 @@ import { BookingSessionsModule } from './booking-sessions/booking-sessions.modul
 import { TicketsModule } from './tickets/tickets.module';
 import { BookingsModule } from './bookings/bookings.module';
 import { RouteClaimsModule } from './route-claims/route-claims.module';
+import { SchedulerModule } from './scheduler/scheduler.module';
 
 @Module({
   imports: [
@@ -16,6 +17,7 @@ import { RouteClaimsModule } from './route-claims/route-claims.module';
     TicketsModule,
     BookingsModule,
     RouteClaimsModule,
+    SchedulerModule,
   ],
   controllers: [AppController],
   providers: [AppService],
